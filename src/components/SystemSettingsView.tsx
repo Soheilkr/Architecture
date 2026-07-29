@@ -28,14 +28,12 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [rules, setRules] = useState<string[]>(strategySettings.rules);
   const [newRule, setNewRule] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-  const [tempFolder, setTempFolder] = useState(screenshotFolder);
   const [testScreenshotResult, setTestScreenshotResult] = useState<string | null>(null);
   const [testLogs, setTestLogs] = useState<Array<{ time: string; status: string; path: string }>>([
     { time: new Date().toLocaleTimeString('fa-IR'), status: 'آماده به کار', path: screenshotFolder || 'Downloads' }
   ]);
 
-  const folderInputRef = useRef<HTMLInputElement>(null);
+
 
   // Re-sync local state when strategy or global settings prop updates
   React.useEffect(() => {
@@ -184,34 +182,6 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     setTimeout(() => setSavedSuccess(false), 2000);
   };
 
-  const handleSelectFolder = async () => {
-    if (window.electronAPI?.selectFolder) {
-      try {
-        const folder = await window.electronAPI.selectFolder();
-        if (folder) {
-          setScreenshotFolder(folder);
-          onSaveGlobalSettings({
-            ...globalSettings,
-            watermarkText: watermark,
-            screenshotFolder: folder,
-            autoScreenshot
-          });
-          return;
-        }
-      } catch (err) {
-        console.error('Electron selectFolder error:', err);
-      }
-    }
-
-    if (folderInputRef.current) {
-      folderInputRef.current.click();
-      return;
-    }
-
-    setTempFolder(screenshotFolder || 'C:\\BtbScreenshots');
-    setIsFolderModalOpen(true);
-  };
-
   const handleAddRule = () => {
     if (!newRule.trim()) return;
     setRules([...rules, newRule.trim()]);
@@ -289,18 +259,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         </div>
 
         <div className="pt-3 border-t border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-400 block font-bold">پوشه ذخیره اسکرین‌شات‌ها (Screenshot Folder)</label>
-            <button
-              type="button"
-              onClick={() => {
-                setTempFolder(screenshotFolder || 'C:\\BtbScreenshots');
-                setIsFolderModalOpen(true);
-              }}
-              className="text-[11px] text-indigo-400 hover:text-indigo-300 underline font-bold cursor-pointer"
-            >
-              تنظیم دستی / پیش‌فرض‌ها
-            </button>
+          <div>
+            <label className="text-xs text-slate-400 block font-bold mb-1">پوشه ذخیره اسکرین‌شات‌ها (Screenshot Folder)</label>
           </div>
           <div className="flex gap-2">
             <input
@@ -319,38 +279,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               placeholder="مسیر یا نام پوشه (مثلاً C:/TradingScreenshots یا Downloads)"
               className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 font-mono focus:outline-none focus:border-indigo-500"
             />
-            <button
-              type="button"
-              onClick={handleSelectFolder}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-3 rounded-xl transition-colors shrink-0 cursor-pointer shadow-lg shadow-indigo-600/30"
-            >
-              انتخاب پوشه...
-            </button>
-            <input
-              type="file"
-              ref={folderInputRef}
-              // @ts-ignore
-              webkitdirectory=""
-              directory=""
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  const file = e.target.files[0];
-                  // @ts-ignore
-                  const relPath = file.webkitRelativePath || file.name;
-                  const folderName = relPath.split('/')[0] || relPath;
-                  if (folderName) {
-                    setScreenshotFolder(folderName);
-                    onSaveGlobalSettings({
-                      ...globalSettings,
-                      watermarkText: watermark,
-                      screenshotFolder: folderName,
-                      autoScreenshot
-                    });
-                  }
-                }
-              }}
-            />
+
           </div>
         </div>
 
@@ -521,87 +450,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Folder Selection Modal */}
-      {isFolderModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-md space-y-5 shadow-2xl animate-fade-in">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-100 flex items-center gap-2">
-                <Settings className="w-4 h-4 text-indigo-400" />
-                انتخاب پوشه ذخیره اسکرین‌شات
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsFolderModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200 text-xs font-bold"
-              >
-                ✕
-              </button>
-            </div>
 
-            <p className="text-xs text-slate-400">
-              نام یا مسیر پوشه مورد نظر خود را وارد کنید یا یکی از گزینه‌های پیش‌فرض زیر را انتخاب نمایید:
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-              {['Downloads', 'Desktop', 'C:\\TradingScreenshots', 'Pictures/Trading'].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setTempFolder(preset)}
-                  className={`text-xs px-3 py-1.5 rounded-xl border transition-colors ${
-                    tempFolder === preset
-                      ? 'bg-indigo-600 border-indigo-500 text-white font-bold'
-                      : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-400 block mb-1 font-bold">مسیر سفارشی:</label>
-              <input
-                type="text"
-                value={tempFolder}
-                onChange={(e) => setTempFolder(e.target.value)}
-                placeholder="مثلاً Downloads یا C:/TradingScreenshots"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setIsFolderModalOpen(false)}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (tempFolder.trim()) {
-                    const newFolder = tempFolder.trim();
-                    setScreenshotFolder(newFolder);
-                    onSaveGlobalSettings({
-                      ...globalSettings,
-                      watermarkText: watermark,
-                      screenshotFolder: newFolder,
-                      autoScreenshot
-                    });
-                  }
-                  setIsFolderModalOpen(false);
-                }}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-5 py-2 rounded-xl transition-colors shadow-lg shadow-indigo-600/30"
-              >
-                تایید و انتخاب
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

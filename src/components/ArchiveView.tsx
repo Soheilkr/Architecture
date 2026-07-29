@@ -14,8 +14,6 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ trades, onRefreshTrade
   const [filterStrategy, setFilterStrategy] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [archiveFolder, setArchiveFolder] = useState<string>(globalSettings?.screenshotFolder || 'Downloads/TradingArchive');
-  const [isFolderModalOpen, setIsFolderModalOpen] = useState<boolean>(false);
-  const [tempFolder, setTempFolder] = useState<string>('Downloads/TradingArchive');
   const [exportSuccess, setExportSuccess] = useState<boolean>(false);
 
   const filteredTrades = trades.filter(t => {
@@ -32,35 +30,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ trades, onRefreshTrade
     }
   };
 
-  const archiveFolderInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleSelectFolder = async () => {
-    if (typeof window !== 'undefined' && window.electronAPI?.selectFolder) {
-      try {
-        const folder = await window.electronAPI.selectFolder();
-        if (folder) {
-          setArchiveFolder(folder);
-          if (globalSettings && onSaveGlobalSettings) {
-            onSaveGlobalSettings({
-              ...globalSettings,
-              screenshotFolder: folder
-            });
-          }
-          return;
-        }
-      } catch (err) {
-        console.error('Electron selectFolder error:', err);
-      }
-    }
-
-    if (archiveFolderInputRef.current) {
-      archiveFolderInputRef.current.click();
-      return;
-    }
-
-    setTempFolder(archiveFolder || 'Downloads/TradingArchive');
-    setIsFolderModalOpen(true);
-  };
 
   const handleExportCSV = () => {
     exportTradesToCSV(filteredTrades, `Trading_Desk_Archive_${Date.now()}.csv`);
@@ -130,49 +100,30 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ trades, onRefreshTrade
 
       {/* Archive Folder Selection Bar */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto flex-1">
           <FolderOpen className="w-5 h-5 text-indigo-400 shrink-0" />
-          <div>
-            <span className="text-xs font-bold text-slate-200 block">پوشه ذخیره خروجی‌ها (Export Folder)</span>
-            <span className="text-[11px] text-slate-400 font-mono">{archiveFolder}</span>
+          <div className="flex-1">
+            <span className="text-xs font-bold text-slate-200 block mb-1">مسیر پوشه ذخیره خروجی‌ها (Export Folder)</span>
+            <input
+              type="text"
+              value={archiveFolder}
+              onChange={(e) => {
+                const val = e.target.value;
+                setArchiveFolder(val);
+                if (globalSettings && onSaveGlobalSettings) {
+                  onSaveGlobalSettings({
+                    ...globalSettings,
+                    screenshotFolder: val
+                  });
+                }
+              }}
+              placeholder="مثلاً Downloads یا C:/TradingArchive"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+            />
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <button
-            type="button"
-            onClick={handleSelectFolder}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center gap-1.5"
-          >
-            <FolderOpen className="w-3.5 h-3.5" />
-            <span>انتخاب پوشه...</span>
-          </button>
-          <input
-            type="file"
-            ref={archiveFolderInputRef}
-            // @ts-ignore
-            webkitdirectory=""
-            directory=""
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                const file = e.target.files[0];
-                // @ts-ignore
-                const relPath = file.webkitRelativePath || file.name;
-                const folderName = relPath.split('/')[0] || relPath;
-                if (folderName) {
-                  setArchiveFolder(folderName);
-                  if (globalSettings && onSaveGlobalSettings) {
-                    onSaveGlobalSettings({
-                      ...globalSettings,
-                      screenshotFolder: folderName
-                    });
-                  }
-                }
-              }
-            }}
-          />
-          
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
           <button
             onClick={handleExportCSV}
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2.5 rounded-xl flex items-center gap-2 text-xs shadow-lg shadow-emerald-950/50 transition-all cursor-pointer active:scale-95"
@@ -276,87 +227,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ trades, onRefreshTrade
         </div>
       )}
 
-      {/* Folder Selection Modal */}
-      {isFolderModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl" dir="rtl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-100 flex items-center gap-2">
-                <FolderOpen className="w-4 h-4 text-indigo-400" />
-                انتخاب پوشه ذخیره خروجی‌ها
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsFolderModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200 text-xs font-bold"
-              >
-                ✕
-              </button>
-            </div>
 
-            <p className="text-xs text-slate-400">
-              نام یا مسیر پوشه مورد نظر خود را وارد کنید یا یکی از گزینه‌های پیش‌فرض زیر را انتخاب نمایید:
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-              {['Downloads', 'Desktop', 'C:\\TradingArchive', 'Pictures/Trading'].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setTempFolder(preset)}
-                  className={`text-xs px-3 py-1.5 rounded-xl border transition-colors ${
-                    tempFolder === preset
-                      ? 'bg-indigo-600 border-indigo-500 text-white font-bold'
-                      : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-400 block mb-1 font-bold">مسیر سفارشی:</label>
-              <input
-                type="text"
-                value={tempFolder}
-                onChange={(e) => setTempFolder(e.target.value)}
-                placeholder="مثلاً Downloads یا C:/TradingArchive"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setIsFolderModalOpen(false)}
-                className="bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (tempFolder.trim()) {
-                    const newFolder = tempFolder.trim();
-                    setArchiveFolder(newFolder);
-                    if (globalSettings && onSaveGlobalSettings) {
-                      onSaveGlobalSettings({
-                        ...globalSettings,
-                        screenshotFolder: newFolder
-                      });
-                    }
-                  }
-                  setIsFolderModalOpen(false);
-                }}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-5 py-2 rounded-xl transition-colors shadow-lg shadow-indigo-600/30"
-              >
-                تایید و انتخاب
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
