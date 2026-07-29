@@ -10,7 +10,12 @@
   ],
   "win": {
     "target": [
-      "nsis"
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
     ]
   },
   "nsis": {
@@ -18,6 +23,7 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Trading Desk Sk"
+    "shortcutName": "Trading Desk Sk",
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   }
 }

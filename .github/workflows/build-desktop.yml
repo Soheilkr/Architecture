@@ -1,13 +1,13 @@
-name: Build Desktop App
+name: Build Single Desktop Installer
 
 on:
   push:
-  pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-installer:
+    name: Build Windows Installer
     runs-on: windows-latest
 
     steps:
@@ -20,22 +20,21 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          Remove-Item -ErrorAction SilentlyContinue package-lock.json
-          npm install --force
+      - name: Install Dependencies
+        run: npm install
 
-
-      - name: Build Vite App
+      - name: Build Web Application
         run: npm run build
 
-      - name: Build Electron Windows Installer
+      - name: Build Electron Single Installer (.exe)
         run: npx electron-builder --win --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Artifacts
+      - name: Upload Installer Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
+          name: Trading-Desk-Sk-Installer
           path: dist-desktop/*.exe
+          if-no-files-found: error
+
