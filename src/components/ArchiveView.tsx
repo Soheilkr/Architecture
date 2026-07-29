@@ -32,6 +32,32 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ trades, onRefreshTrade
 
 
 
+  const archiveFolderInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleSelectFolder = async () => {
+    if (typeof window !== 'undefined' && window.electronAPI?.selectFolder) {
+      try {
+        const folder = await window.electronAPI.selectFolder();
+        if (folder) {
+          setArchiveFolder(folder);
+          if (globalSettings && onSaveGlobalSettings) {
+            onSaveGlobalSettings({
+              ...globalSettings,
+              screenshotFolder: folder
+            });
+          }
+          return;
+        }
+      } catch (err) {
+        console.error('Electron selectFolder error:', err);
+      }
+    }
+
+    if (archiveFolderInputRef.current) {
+      archiveFolderInputRef.current.click();
+    }
+  };
+
   const handleExportCSV = () => {
     exportTradesToCSV(filteredTrades, `Trading_Desk_Archive_${Date.now()}.csv`);
     setExportSuccess(true);
@@ -102,8 +128,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ trades, onRefreshTrade
       <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 w-full sm:w-auto flex-1">
           <FolderOpen className="w-5 h-5 text-indigo-400 shrink-0" />
-          <div className="flex-1">
-            <span className="text-xs font-bold text-slate-200 block mb-1">مسیر پوشه ذخیره خروجی‌ها (Export Folder)</span>
+          <div className="flex-1 flex gap-2">
             <input
               type="text"
               value={archiveFolder}
@@ -118,7 +143,40 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({ trades, onRefreshTrade
                 }
               }}
               placeholder="مثلاً Downloads یا C:/TradingArchive"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              type="button"
+              onClick={handleSelectFolder}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 shrink-0"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              <span>انتخاب پوشه...</span>
+            </button>
+            <input
+              type="file"
+              ref={archiveFolderInputRef}
+              // @ts-ignore
+              webkitdirectory=""
+              directory=""
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  const file = e.target.files[0];
+                  // @ts-ignore
+                  const relPath = file.webkitRelativePath || file.name;
+                  const folderName = relPath.split('/')[0] || relPath;
+                  if (folderName) {
+                    setArchiveFolder(folderName);
+                    if (globalSettings && onSaveGlobalSettings) {
+                      onSaveGlobalSettings({
+                        ...globalSettings,
+                        screenshotFolder: folderName
+                      });
+                    }
+                  }
+                }
+              }}
             />
           </div>
         </div>

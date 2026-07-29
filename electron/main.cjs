@@ -1,15 +1,16 @@
-const { app, BrowserWindow, shell, ipcMain, dialog, desktopCapturer } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, dialog, desktopCapturer, screen } = require('electron');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
 
 ipcMain.handle('select-screenshot-folder', async () => {
   try {
-    const result = await dialog.showOpenDialog({
+    const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    const result = await dialog.showOpenDialog(win, {
       title: 'انتخاب پوشه ذخیره‌سازی اسکرین‌شات‌ها',
       properties: ['openDirectory', 'createDirectory']
     });
-    if (!result.canceled && result.filePaths.length > 0) {
+    if (result && !result.canceled && result.filePaths.length > 0) {
       return result.filePaths[0];
     }
   } catch (err) {
@@ -20,24 +21,32 @@ ipcMain.handle('select-screenshot-folder', async () => {
 
 ipcMain.handle('take-screenshot', async (event, monitorIndex = 0) => {
   try {
+    const primaryDisplay = screen ? screen.getPrimaryDisplay() : null;
+    const width = primaryDisplay ? primaryDisplay.size.width : 1920;
+    const height = primaryDisplay ? primaryDisplay.size.height : 1080;
+
     let sources = await desktopCapturer.getSources({
       types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
+      thumbnailSize: { width: Math.min(width, 1920), height: Math.min(height, 1080) }
     });
 
     if (!sources || sources.length === 0) {
       sources = await desktopCapturer.getSources({
-        types: ['screen', 'window'],
+        types: ['window', 'screen'],
         thumbnailSize: { width: 1280, height: 720 }
       });
     }
 
     if (sources && sources.length > 0) {
       const selectedSource = sources[monitorIndex] || sources[0];
-      const dataUrl = selectedSource.thumbnail.toDataURL();
-      return { success: true, dataUrl, name: selectedSource.name };
+      if (selectedSource && selectedSource.thumbnail) {
+        const dataUrl = selectedSource.thumbnail.toDataURL();
+        if (dataUrl && dataUrl.length > 100) {
+          return { success: true, dataUrl, name: selectedSource.name };
+        }
+      }
     }
-    return { success: false, error: 'هیچ منبع تصویری یا مانیتوری یافت نشد.' };
+    return { success: false, error: 'هیچ منبع تصویری یا مانیتوری برای اسکرین‌شات یافت نشد.' };
   } catch (err) {
     console.error('Error capturing screen:', err);
     return { success: false, error: err && err.message ? err.message : String(err) };
@@ -52,15 +61,23 @@ ipcMain.handle('save-screenshot', async (event, { dataUrl, folderPath, filename 
 
     let baseFolder = folderPath;
     
-    // Fallback if folderPath is empty or relative like "Downloads"
-    if (!baseFolder || baseFolder === 'Downloads' || baseFolder.startsWith('Downloads/')) {
+    // Resolve shortcut relative folder names
+    if (!baseFolder || baseFolder === 'Downloads' || baseFolder.startsWith('Downloads/') || baseFolder.startsWith('Downloads\\')) {
       const userDownloads = app.getPath('downloads');
-      if (baseFolder && baseFolder.startsWith('Downloads/')) {
-        const sub = baseFolder.replace(/^Downloads[\/\\]?/, '');
-        baseFolder = path.join(userDownloads, sub);
-      } else {
-        baseFolder = path.join(userDownloads, 'TradingScreenshots');
-      }
+      const sub = baseFolder ? baseFolder.replace(/^Downloads[\/\\]?/, '') : '';
+      baseFolder = sub ? path.join(userDownloads, sub) : path.join(userDownloads, 'TradingScreenshots');
+    } else if (baseFolder === 'Desktop' || baseFolder.startsWith('Desktop/') || baseFolder.startsWith('Desktop\\')) {
+      const userDesktop = app.getPath('desktop');
+      const sub = baseFolder.replace(/^Desktop[\/\\]?/, '');
+      baseFolder = sub ? path.join(userDesktop, sub) : userDesktop;
+    } else if (baseFolder === 'Documents' || baseFolder.startsWith('Documents/') || baseFolder.startsWith('Documents\\')) {
+      const userDocs = app.getPath('documents');
+      const sub = baseFolder.replace(/^Documents[\/\\]?/, '');
+      baseFolder = sub ? path.join(userDocs, sub) : userDocs;
+    } else if (baseFolder === 'Pictures' || baseFolder.startsWith('Pictures/') || baseFolder.startsWith('Pictures\\')) {
+      const userPics = app.getPath('pictures');
+      const sub = baseFolder.replace(/^Pictures[\/\\]?/, '');
+      baseFolder = sub ? path.join(userPics, sub) : userPics;
     }
 
     // Ensure path is resolved as absolute

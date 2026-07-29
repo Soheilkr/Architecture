@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { StrategyMode, StrategySettings, GlobalSettings } from '../types';
 import { exportFullBackupJSON, importFullBackupJSON } from '../utils/storage';
-import { Settings, Save, Download, Upload, Trash2, CheckCircle2, Shield, RefreshCw } from 'lucide-react';
+import { Settings, Save, Download, Upload, Trash2, CheckCircle2, Shield, RefreshCw, FolderOpen } from 'lucide-react';
 
 interface SystemSettingsViewProps {
   currentStrategy: StrategyMode;
@@ -32,6 +32,32 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [testLogs, setTestLogs] = useState<Array<{ time: string; status: string; path: string }>>([
     { time: new Date().toLocaleTimeString('fa-IR'), status: 'آماده به کار', path: screenshotFolder || 'Downloads' }
   ]);
+
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSelectFolder = async () => {
+    if (window.electronAPI?.selectFolder) {
+      try {
+        const folder = await window.electronAPI.selectFolder();
+        if (folder) {
+          setScreenshotFolder(folder);
+          onSaveGlobalSettings({
+            ...globalSettings,
+            watermarkText: watermark,
+            screenshotFolder: folder,
+            autoScreenshot
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('Electron selectFolder error:', err);
+      }
+    }
+
+    if (folderInputRef.current) {
+      folderInputRef.current.click();
+    }
+  };
 
 
 
@@ -279,7 +305,39 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               placeholder="مسیر یا نام پوشه (مثلاً C:/TradingScreenshots یا Downloads)"
               className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 font-mono focus:outline-none focus:border-indigo-500"
             />
-
+            <button
+              type="button"
+              onClick={handleSelectFolder}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-3 rounded-xl transition-colors shrink-0 cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center gap-1.5"
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span>انتخاب پوشه...</span>
+            </button>
+            <input
+              type="file"
+              ref={folderInputRef}
+              // @ts-ignore
+              webkitdirectory=""
+              directory=""
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  const file = e.target.files[0];
+                  // @ts-ignore
+                  const relPath = file.webkitRelativePath || file.name;
+                  const folderName = relPath.split('/')[0] || relPath;
+                  if (folderName) {
+                    setScreenshotFolder(folderName);
+                    onSaveGlobalSettings({
+                      ...globalSettings,
+                      watermarkText: watermark,
+                      screenshotFolder: folderName,
+                      autoScreenshot
+                    });
+                  }
+                }
+              }}
+            />
           </div>
         </div>
 
