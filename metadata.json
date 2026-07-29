@@ -1,0 +1,6 @@
+{
+  "name": "Trading Desk",
+  "description": "دستگاه و دستیار معامله‌گری پرو سهیل کشتکار - استراتژی‌های کانال، BTB و اسپایک همراه با مدیریت ریسک، ژورنال‌نویسی، محاسبه Win Rate، واترمارک و خروجی اکسل",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

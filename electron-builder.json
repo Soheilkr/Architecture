@@ -1,0 +1,23 @@
+{
+  "appId": "com.soheil.tradingdesksk",
+  "productName": "Trading Desk Sk",
+  "directories": {
+    "output": "dist-desktop"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*"
+  ],
+  "win": {
+    "target": [
+      "nsis"
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Trading Desk Sk"
+  }
+}
