@@ -4,25 +4,44 @@ const http = require('http');
 const fs = require('fs');
 
 ipcMain.handle('select-screenshot-folder', async () => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory', 'createDirectory']
-  });
-  if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
+  try {
+    const result = await dialog.showOpenDialog({
+      title: 'انتخاب پوشه ذخیره‌سازی اسکرین‌شات‌ها',
+      properties: ['openDirectory', 'createDirectory']
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+  } catch (err) {
+    console.error('Error selecting folder:', err);
   }
   return null;
 });
 
-ipcMain.handle('take-screenshot', async () => {
+ipcMain.handle('take-screenshot', async (event, monitorIndex = 0) => {
   try {
-    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
-    if (sources.length > 0) {
-      return sources[0].thumbnail.toDataURL();
+    let sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    });
+
+    if (!sources || sources.length === 0) {
+      sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 1280, height: 720 }
+      });
     }
+
+    if (sources && sources.length > 0) {
+      const selectedSource = sources[monitorIndex] || sources[0];
+      const dataUrl = selectedSource.thumbnail.toDataURL();
+      return { success: true, dataUrl, name: selectedSource.name };
+    }
+    return { success: false, error: 'هیچ منبع تصویری یا مانیتوری یافت نشد.' };
   } catch (err) {
     console.error('Error capturing screen:', err);
+    return { success: false, error: err && err.message ? err.message : String(err) };
   }
-  return null;
 });
 
 ipcMain.handle('save-screenshot', async (event, { dataUrl, folderPath, filename }) => {

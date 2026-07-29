@@ -91,7 +91,15 @@ export const PostTradeView: React.FC<PostTradeViewProps> = ({
   const handleAutoScreenshot = async () => {
     if (window.electronAPI?.takeScreenshot) {
       try {
-        const dataUrl = await window.electronAPI.takeScreenshot();
+        const res = await window.electronAPI.takeScreenshot();
+        let dataUrl: string | undefined;
+
+        if (typeof res === 'string') {
+          dataUrl = res;
+        } else if (res && typeof res === 'object' && res.success) {
+          dataUrl = res.dataUrl;
+        }
+
         if (dataUrl) {
           setChartImage(dataUrl);
           generateWatermarkCanvas(dataUrl);

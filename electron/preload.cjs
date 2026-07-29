@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   selectFolder: () => ipcRenderer.invoke('select-screenshot-folder'),
-  takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
+  takeScreenshot: (monitorIndex = 0) => ipcRenderer.invoke('take-screenshot', monitorIndex),
   saveScreenshot: (dataUrl, folderPath, filename) => ipcRenderer.invoke('save-screenshot', { dataUrl, folderPath, filename })
 });
 

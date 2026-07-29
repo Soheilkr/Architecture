@@ -50,7 +50,49 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     setAutoScreenshot(globalSettings.autoScreenshot ?? true);
   }, [globalSettings]);
 
-  const handleTestScreenshotCapture = () => {
+  const handleTestScreenshotCapture = async () => {
+    if (window.electronAPI?.takeScreenshot) {
+      try {
+        const res = await window.electronAPI.takeScreenshot();
+        let dataUrl: string | undefined;
+
+        if (typeof res === 'string') {
+          dataUrl = res;
+        } else if (res && typeof res === 'object') {
+          if (res.success && res.dataUrl) {
+            dataUrl = res.dataUrl;
+          } else if (res.error) {
+            alert(`خطا در تهیه اسکرین‌شات:\n${res.error}`);
+            return;
+          }
+        }
+
+        if (dataUrl) {
+          setTestScreenshotResult(dataUrl);
+          const nowTime = new Date().toLocaleTimeString('fa-IR');
+          setTestLogs(prev => [
+            { time: nowTime, status: 'موفقیت‌آمیز (اسکرین‌شات دسکتاپ)', path: screenshotFolder || 'Downloads' },
+            ...prev.slice(0, 4)
+          ]);
+
+          if (screenshotFolder && window.electronAPI?.saveScreenshot) {
+            try {
+              await window.electronAPI.saveScreenshot(dataUrl, screenshotFolder, `test-screenshot-${Date.now()}.png`);
+            } catch (err) {
+              console.error('Save screenshot error:', err);
+            }
+          }
+          return;
+        }
+      } catch (err: any) {
+        console.error('Electron test screenshot error:', err);
+        const errorMsg = err?.message || (typeof err === 'string' ? err : 'خطای ناشناخته در برنامه دسکتاپ');
+        alert(`خطا در تهیه اسکرین‌شات:\n${errorMsg}`);
+        return;
+      }
+    }
+
+    // Canvas simulation fallback for Web preview
     const canvas = document.createElement('canvas');
     canvas.width = 900;
     canvas.height = 500;
@@ -97,7 +139,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
       const nowTime = new Date().toLocaleTimeString('fa-IR');
       setTestLogs(prev => [
-        { time: nowTime, status: 'موفقیت‌آمیز (تست شد)', path: screenshotFolder || 'Downloads' },
+        { time: nowTime, status: 'موفقیت‌آمیز (تست آنلاین)', path: screenshotFolder || 'Downloads' },
         ...prev.slice(0, 4)
       ]);
     }

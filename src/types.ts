@@ -66,7 +66,7 @@ declare global {
     electronAPI?: {
       isElectron?: boolean;
       selectFolder: () => Promise<string | null>;
-      takeScreenshot: () => Promise<string | null>;
+      takeScreenshot: (monitorIndex?: number) => Promise<string | { success: boolean; dataUrl?: string; error?: string } | null>;
       saveScreenshot: (dataUrl: string, folderPath?: string, filename?: string) => Promise<string>;
     };
   }
