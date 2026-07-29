@@ -67,7 +67,7 @@ declare global {
       isElectron?: boolean;
       selectFolder: () => Promise<string | null>;
       takeScreenshot: (monitorIndex?: number) => Promise<string | { success: boolean; dataUrl?: string; error?: string } | null>;
-      saveScreenshot: (dataUrl: string, folderPath?: string, filename?: string) => Promise<string>;
+      saveScreenshot: (dataUrl: string, folderPath?: string, filename?: string) => Promise<string | { success: boolean; filePath?: string; folderPath?: string; error?: string; warning?: string }>;
     };
   }
 }

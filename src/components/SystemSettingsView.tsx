@@ -70,18 +70,38 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         if (dataUrl) {
           setTestScreenshotResult(dataUrl);
           const nowTime = new Date().toLocaleTimeString('fa-IR');
-          setTestLogs(prev => [
-            { time: nowTime, status: 'موفقیت‌آمیز (اسکرین‌شات دسکتاپ)', path: screenshotFolder || 'Downloads' },
-            ...prev.slice(0, 4)
-          ]);
+          let savedPathDisplay = screenshotFolder || 'Downloads';
 
-          if (screenshotFolder && window.electronAPI?.saveScreenshot) {
+          if (window.electronAPI?.saveScreenshot) {
             try {
-              await window.electronAPI.saveScreenshot(dataUrl, screenshotFolder, `test-screenshot-${Date.now()}.png`);
-            } catch (err) {
-              console.error('Save screenshot error:', err);
+              const saveRes = await window.electronAPI.saveScreenshot(
+                dataUrl,
+                screenshotFolder || 'Downloads',
+                `test-screenshot-${Date.now()}.png`
+              );
+
+              if (typeof saveRes === 'string') {
+                savedPathDisplay = saveRes;
+              } else if (saveRes && typeof saveRes === 'object') {
+                if (saveRes.success) {
+                  savedPathDisplay = saveRes.filePath || saveRes.folderPath || savedPathDisplay;
+                  if (saveRes.warning) {
+                    alert(`⚠️ ${saveRes.warning}`);
+                  }
+                } else if (saveRes.error) {
+                  alert(`خطا در ذخیره‌سازی فایل اسکرین‌شات:\n${saveRes.error}`);
+                }
+              }
+            } catch (saveErr: any) {
+              console.error('Save screenshot error:', saveErr);
+              alert(`خطا در ذخیره تصویر:\n${saveErr?.message || saveErr}`);
             }
           }
+
+          setTestLogs(prev => [
+            { time: nowTime, status: 'موفقیت‌آمیز (دسکتاپ)', path: savedPathDisplay },
+            ...prev.slice(0, 4)
+          ]);
           return;
         }
       } catch (err: any) {
@@ -170,6 +190,12 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         const folder = await window.electronAPI.selectFolder();
         if (folder) {
           setScreenshotFolder(folder);
+          onSaveGlobalSettings({
+            ...globalSettings,
+            watermarkText: watermark,
+            screenshotFolder: folder,
+            autoScreenshot
+          });
           return;
         }
       } catch (err) {
@@ -177,8 +203,12 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       }
     }
 
-    // Open interactive folder selection modal immediately
-    setTempFolder(screenshotFolder || 'Downloads/TradingScreenshots');
+    if (folderInputRef.current) {
+      folderInputRef.current.click();
+      return;
+    }
+
+    setTempFolder(screenshotFolder || 'C:\\BtbScreenshots');
     setIsFolderModalOpen(true);
   };
 
@@ -259,12 +289,33 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
         </div>
 
         <div className="pt-3 border-t border-slate-800 space-y-3">
-          <label className="text-xs text-slate-400 block font-bold">پوشه ذخیره اسکرین‌شات‌ها (Screenshot Folder)</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-400 block font-bold">پوشه ذخیره اسکرین‌شات‌ها (Screenshot Folder)</label>
+            <button
+              type="button"
+              onClick={() => {
+                setTempFolder(screenshotFolder || 'C:\\BtbScreenshots');
+                setIsFolderModalOpen(true);
+              }}
+              className="text-[11px] text-indigo-400 hover:text-indigo-300 underline font-bold cursor-pointer"
+            >
+              تنظیم دستی / پیش‌فرض‌ها
+            </button>
+          </div>
           <div className="flex gap-2">
             <input
               type="text"
               value={screenshotFolder}
-              onChange={(e) => setScreenshotFolder(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setScreenshotFolder(val);
+                onSaveGlobalSettings({
+                  ...globalSettings,
+                  watermarkText: watermark,
+                  screenshotFolder: val,
+                  autoScreenshot
+                });
+              }}
               placeholder="مسیر یا نام پوشه (مثلاً C:/TradingScreenshots یا Downloads)"
               className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 font-mono focus:outline-none focus:border-indigo-500"
             />
@@ -290,6 +341,12 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   const folderName = relPath.split('/')[0] || relPath;
                   if (folderName) {
                     setScreenshotFolder(folderName);
+                    onSaveGlobalSettings({
+                      ...globalSettings,
+                      watermarkText: watermark,
+                      screenshotFolder: folderName,
+                      autoScreenshot
+                    });
                   }
                 }
               }}
@@ -526,7 +583,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 type="button"
                 onClick={() => {
                   if (tempFolder.trim()) {
-                    setScreenshotFolder(tempFolder.trim());
+                    const newFolder = tempFolder.trim();
+                    setScreenshotFolder(newFolder);
+                    onSaveGlobalSettings({
+                      ...globalSettings,
+                      watermarkText: watermark,
+                      screenshotFolder: newFolder,
+                      autoScreenshot
+                    });
                   }
                   setIsFolderModalOpen(false);
                 }}

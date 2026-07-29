@@ -189,6 +189,8 @@ export default function App() {
           <ArchiveView
             trades={tradeHistory}
             onRefreshTrades={handleRefreshTrades}
+            globalSettings={globalSettings}
+            onSaveGlobalSettings={handleSaveGlobalSettings}
           />
         )}
 

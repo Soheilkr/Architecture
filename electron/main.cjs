@@ -46,22 +46,64 @@ ipcMain.handle('take-screenshot', async (event, monitorIndex = 0) => {
 
 ipcMain.handle('save-screenshot', async (event, { dataUrl, folderPath, filename }) => {
   try {
-    if (!folderPath) {
-      folderPath = app.getPath('pictures');
+    if (!dataUrl) {
+      return { success: false, error: 'هیچ داده تصویری برای ذخیره‌سازی ارسال نشده است.' };
     }
-    const today = new Date().toISOString().split('T')[0];
-    const targetFolder = path.join(folderPath, today);
 
-    if (!fs.existsSync(targetFolder)) {
-      fs.mkdirSync(targetFolder, { recursive: true });
+    let baseFolder = folderPath;
+    
+    // Fallback if folderPath is empty or relative like "Downloads"
+    if (!baseFolder || baseFolder === 'Downloads' || baseFolder.startsWith('Downloads/')) {
+      const userDownloads = app.getPath('downloads');
+      if (baseFolder && baseFolder.startsWith('Downloads/')) {
+        const sub = baseFolder.replace(/^Downloads[\/\\]?/, '');
+        baseFolder = path.join(userDownloads, sub);
+      } else {
+        baseFolder = path.join(userDownloads, 'TradingScreenshots');
+      }
     }
-    const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
-    const filePath = path.join(targetFolder, filename || `trade-${Date.now()}.png`);
-    fs.writeFileSync(filePath, base64Data, 'base64');
-    return filePath;
+
+    // Ensure path is resolved as absolute
+    baseFolder = path.resolve(baseFolder);
+
+    const today = new Date().toISOString().split('T')[0];
+    const targetFolder = path.join(baseFolder, today);
+
+    // Create target directory recursively with fallback
+    let actualTargetFolder = targetFolder;
+    let warningMsg = null;
+
+    try {
+      if (!fs.existsSync(targetFolder)) {
+        fs.mkdirSync(targetFolder, { recursive: true });
+      }
+    } catch (dirErr) {
+      console.error('Failed to create custom folder, falling back to Downloads:', dirErr);
+      const fallbackFolder = path.join(app.getPath('downloads'), 'TradingScreenshots', today);
+      if (!fs.existsSync(fallbackFolder)) {
+        fs.mkdirSync(fallbackFolder, { recursive: true });
+      }
+      actualTargetFolder = fallbackFolder;
+      warningMsg = `پوشه ${targetFolder} به دلیل محدودیت دسترسی ساخته نشد. تصویر در ${fallbackFolder} ذخیره گردید.`;
+    }
+
+    const cleanBase64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+    const safeName = filename || `trade-${Date.now()}.png`;
+    const finalFilePath = path.join(actualTargetFolder, safeName);
+
+    fs.writeFileSync(finalFilePath, cleanBase64, 'base64');
+    return {
+      success: true,
+      filePath: finalFilePath,
+      folderPath: actualTargetFolder,
+      warning: warningMsg
+    };
   } catch (err) {
     console.error('Error saving screenshot:', err);
-    throw err;
+    return {
+      success: false,
+      error: err && err.message ? err.message : String(err)
+    };
   }
 });
 
